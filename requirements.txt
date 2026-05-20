@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+openai-whisper
+faiss-cpu
+scenedetect[opencv]
+sentence-transformers
+requests
+python-multipart
+numpy
+yt-dlp
