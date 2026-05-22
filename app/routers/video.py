@@ -116,7 +116,7 @@ async def process_video_api(
     # URL INPUT
     # =========================
 
-    if url:
+    if url and url != "string":
 
         try:
 
