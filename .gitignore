@@ -13,7 +13,6 @@ downloads/
 *.wav
 *.jpg
 *.png
-*.log
 
 # VS Code
 .vscode/
