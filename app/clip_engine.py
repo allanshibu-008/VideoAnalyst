@@ -111,6 +111,9 @@ def export_clip(
         exist_ok=True
     )
 
+    print("VIDEO PATH =", video_path)
+    print("FILE EXISTS =", os.path.exists(video_path))
+
     cmd = [
         "ffmpeg",
         "-y",

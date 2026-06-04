@@ -319,20 +319,33 @@ def transcribe_silent_video(
         "Using vision analysis..."
     )
 
+    print("Step 1: Getting video duration")
+
     duration = get_video_duration(
         video_path
     )
 
+    print(f"Step 2: Duration = {duration}")
+
     interval = (
         3 if duration < 60 else 5
     )
+
+    print("Step 3: Extracting frames")
 
     frames = extract_frames(
         video_path,
         interval_seconds=interval
     )
 
+    print(
+        f"Step 4: Frame extraction complete. "
+        f"Frames found: {len(frames)}"
+    )
+
     segments = []
+
+    print("Step 5: Starting vision model")
 
     with ThreadPoolExecutor(
         max_workers=1
@@ -351,14 +364,14 @@ def transcribe_silent_video(
             )
         )
 
+    print("Step 6: Vision model completed")
+
     for frame, description in zip(
         frames,
         descriptions
     ):
 
-        description = (
-            description.strip()
-        )
+        description = description.strip()
 
         if (
             "could not" in description.lower()
@@ -366,33 +379,6 @@ def transcribe_silent_video(
             or "no meaningful" in description.lower()
         ):
             continue
-
-        # REMOVE SIMILAR CAPTIONS
-
-        if len(segments) > 0:
-
-            previous = (
-                segments[-1]["text"]
-                .lower()
-                .strip()
-            )
-
-            current = (
-                description
-                .lower()
-                .strip()
-            )
-
-            if previous == current:
-                continue
-
-            if (
-                "chicken" in previous
-                and "chicken" in current
-                and "road" in previous
-                and "road" in current
-            ):
-                continue
 
         segments.append({
 
@@ -408,14 +394,9 @@ def transcribe_silent_video(
             )
         })
 
-        logger.info(
-            f"Frame "
-            f"{frame['timestamp']}s: "
-            f"{description}"
-        )
+    print("Step 7: Silent video processing complete")
 
     return segments
-
 # =========================
 # MAIN VIDEO PROCESSING
 # =========================
@@ -424,14 +405,13 @@ def process_video(
     video_path: str
 ) -> Dict[str, Any]:
 
-    if not os.path.exists(
-        video_path
-    ):
+    if not os.path.exists(video_path):
 
         raise FileNotFoundError(
-            f"File not found: "
-            f"{video_path}"
+            f"File not found: {video_path}"
         )
+
+    print("Step A: Video exists")
 
     logger.info(
         "Processing video..."
@@ -441,30 +421,21 @@ def process_video(
         video_path
     )
 
-    # =========================
-    # AUDIO VIDEO
-    # =========================
+    print(
+        f"Step B: Audio present = {audio_present}"
+    )
 
     if audio_present:
 
-        logger.info(
-            "Audio detected. "
-            "Using Whisper..."
-        )
+        print("Step C: Starting Whisper")
 
         audio_path = extract_audio(
             video_path
         )
 
         with ThreadPoolExecutor(
-            max_workers=2
+            max_workers=1
         ) as executor:
-
-            scene_future = executor.submit(
-                detect,
-                video_path,
-                ContentDetector()
-            )
 
             transcribe_future = executor.submit(
                 whisper_model.transcribe,
@@ -474,12 +445,19 @@ def process_video(
                 condition_on_previous_text=False
             )
 
-            scene_list = (
-                scene_future.result()
+            print(
+                "Skipping scene detection temporarily"
             )
+
+            # TEMP FIX
+            scene_list = []
 
             result = (
                 transcribe_future.result()
+            )
+
+            print(
+                "Whisper complete"
             )
 
             raw_segments = result[
@@ -494,37 +472,24 @@ def process_video(
                     "text"
                 ].strip()
 
-                if not text:
-                    continue
+                if text:
 
-                # CLEAN TRANSCRIPT
-                text = re.sub(
-                    r'\s+',
-                    ' ',
-                    text
-                ).strip()
+                    segments.append({
 
-                segments.append({
+                        "text": text,
 
-                    "text": text,
+                        "start": float(
+                            seg["start"]
+                        ),
 
-                    "start": float(
-                        seg["start"]
-                    ),
-
-                    "end": float(
-                        seg["end"]
-                    )
-                })
-
-    # =========================
-    # SILENT VIDEO
-    # =========================
-
+                        "end": float(
+                            seg["end"]
+                        )
+                    })
     else:
 
-        logger.info(
-            "Silent video detected."
+        print(
+            "Step G: Silent video"
         )
 
         scene_list = detect(
@@ -538,37 +503,23 @@ def process_video(
             )
         )
 
-    chapters = [
-
-        float(
-            scene[0].get_seconds()
-        )
-
-        for scene in scene_list
-    ]
-
-    logger.info(
-        "Building FAISS index..."
+    print(
+        "Step H: Building embeddings"
     )
 
     texts = [
-
         str(s["text"])
-
         for s in segments
-
         if s.get("text")
     ]
-
-    if not texts:
-
-        raise ValueError(
-            "No transcript generated."
-        )
 
     embeddings = embed_model.encode(
         texts
     ).astype("float32")
+
+    print(
+        "Step I: FAISS indexing"
+    )
 
     index = faiss.IndexFlatL2(
         embeddings.shape[1]
@@ -578,19 +529,20 @@ def process_video(
         embeddings
     )
 
+    print(
+        "Step J: Processing complete"
+    )
+
     return {
-
         "index": index,
-
         "segments": segments,
-
         "texts": texts,
-
-        "chapters": chapters,
-
+        "chapters": [
+            float(scene[0].get_seconds())
+            for scene in scene_list
+        ],
         "has_audio": audio_present
     }
-
 # =========================
 # SEARCH / QA
 # =========================

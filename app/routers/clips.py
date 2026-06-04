@@ -78,6 +78,9 @@ async def create_clip(req: ClipRequest):
             f"data/clips/"
             f"clip_{int(time.time())}.mp4"
         )
+        print("MEMORY CONTENT =", mem)
+        print("FILE PATH =", mem["file_path"])
+        print("EXISTS =", os.path.exists(mem["file_path"]))
 
         export_clip(
             mem["file_path"],

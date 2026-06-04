@@ -298,7 +298,21 @@ async def process_video_api(
         )
 
         data['file_path'] = (
-            processing_path
+            os.path.abspath(
+                processing_path
+            )
+        )
+
+        print(
+            "Saving to memory:",
+            data["file_path"]
+        )
+
+        print(
+            "Exists while saving:",
+            os.path.exists(
+                data["file_path"]
+            )
         )
 
         data['original_format'] = ext
@@ -371,23 +385,13 @@ async def process_video_api(
     finally:
 
         # =========================
-        # CLEANUP URL DOWNLOADS
+        # KEEP VIDEO FOR CLIP EXPORT
         # =========================
 
-        if url:
+        # Do not delete the downloaded video.
+        # Clip export needs the original file path.
 
-            try:
-
-                if os.path.exists(
-                    processing_path
-                ):
-
-                    os.remove(
-                        processing_path
-                    )
-
-            except:
-                pass
+        pass
 
 # =========================
 # LIST VIDEOS
